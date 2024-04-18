@@ -65,6 +65,7 @@ class State(rx.State):
     submitted_answers: dict[int, list[str]] = {}
 
     def submit_question(self, data, question_id):
+        print(data),
         if "_selected_option" in data:
             submitted_answer = [data["_selected_option"]]
         else:  # multiple_choice
@@ -76,26 +77,19 @@ class State(rx.State):
         return self.questions[self.index]
 
     def next_question(self):
-        print("Current question" + str(self.index))
-        self.index += 1
+        if self.index < len(self.questions) - 1:
+            self.index += 1
 
     def prev_question(self):
-        self.index = max(self.index - 1, 0)
+        if self.index > 0:
+            self.index -= 1
 
     def submit_quiz(self):
         self.quiz_completed = True
 
     @rx.var
     def last_question(self):
-        print(self.index >= len(self.questions) - 1)
-        return self.index >= len(self.questions)
-
-    # @rx.var
-    # def quiz_completed(self):
-    #     print("Quiz completed")
-    #     print(self.quiz_completed)
-    #     return self.quiz_completed
-
+        return self.index >= len(self.questions) - 1
 
 def multi_choice_question_comp(question : Question) -> rx.Component:
     return rx.form(
@@ -104,7 +98,14 @@ def multi_choice_question_comp(question : Question) -> rx.Component:
             question.options,
             lambda option: rx.checkbox(option, name=option),
         ),
-        rx.button("Submit"),
+        rx.hstack(
+            previous_button(),
+            rx.cond(
+                State.last_question,
+                rx.button("Submit", on_click=State.submit_quiz),
+                next_button(),
+            ),
+        ),
         on_submit=lambda data: State.submit_question(data, question.id),
     )
 
@@ -112,7 +113,14 @@ def single_choice_question_comp(question : Question) -> rx.Component:
     return rx.form(
         rx.text(question.question_body),
         rx.radio(question.options, name="_selected_option"),
-        rx.button("Submit", type="submit"),
+        rx.hstack(
+            previous_button(),
+            rx.cond(
+                State.last_question,
+                rx.button("Submit", on_click=State.submit_quiz),
+                next_button(),
+            ),
+        ),
         on_submit=lambda data: State.submit_question(data, question.id),
     )
 
@@ -136,23 +144,21 @@ def quiz_comp() -> rx.Component:
             single_choice_question_comp(cur_question),
             multi_choice_question_comp(cur_question),
         ),
-        rx.hstack(
-            previous_button(),
-            rx.cond(
-                State.last_question,
-                rx.button("Submit", on_click=State.submit_quiz),
-                next_button(),
-            ),
-        ),
     )
 
 def result_comp() -> rx.Component:
-    return None
+    return rx.center(
+        rx.text("Test Result"),
+    )
 
 def index() -> rx.Component:
     return rx.center(
         rx.hstack(
-            quiz_comp(),
+            rx.cond(
+                State.quiz_completed,
+                result_comp(),
+                quiz_comp(),
+            ),
             align="center",
             spacing="7",
             font_size="2em",
