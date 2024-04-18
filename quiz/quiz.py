@@ -56,6 +56,7 @@ class Question(rx.Base):
     question_image: str | None
     options: list[str]
     correct_answers: list[str]
+    selected_answers: list[str] = []
 
 class State(rx.State):
     """The app state."""
@@ -71,6 +72,7 @@ class State(rx.State):
         else:  # multiple_choice
             submitted_answer = [key for key, value in data.items() if value == "on"]
         self.submitted_answers[question_id] = submitted_answer
+        self.questions[question_id].selected_answers = submitted_answer
 
     @rx.var
     def current_question(self) -> Question:
@@ -92,11 +94,18 @@ class State(rx.State):
         return self.index >= len(self.questions) - 1
 
 def multi_choice_question_comp(question : Question) -> rx.Component:
+    def is_selected(option: str) -> bool:
+        return question.selected_answers.contains(option)
+
     return rx.form(
         rx.text(question.question_body),
         rx.foreach(
             question.options,
-            lambda option: rx.checkbox(option, name=option),
+            lambda option: rx.checkbox(
+                option,
+                name=option,
+                default_checked=is_selected(option),
+            ),
         ),
         rx.hstack(
             previous_button(),
@@ -112,7 +121,15 @@ def multi_choice_question_comp(question : Question) -> rx.Component:
 def single_choice_question_comp(question : Question) -> rx.Component:
     return rx.form(
         rx.text(question.question_body),
-        rx.radio(question.options, name="_selected_option"),
+        rx.radio(
+            question.options,
+            name="_selected_option",
+            default_value=rx.cond(
+                question.selected_answers.length() > 0,
+                question.selected_answers[0],
+                "",
+            ),
+        ),
         rx.hstack(
             previous_button(),
             rx.cond(
