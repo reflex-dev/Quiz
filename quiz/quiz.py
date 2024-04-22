@@ -10,42 +10,42 @@ questions = [
     {
         "id": 0,
         "question_type": "multiple_choice",
-        "question_body": "Which of the following are fruits?",
+        "question_body": "Which of the following are types of variables in a Reflex State?",
         "question_image": None,
-        "options": ["Apple", "Carrot", "Banana", "Lettuce", "Orange"],
-        "correct_answers": ["Apple", "Banana", "Orange"]
+        "options": ["Base Var", "Computed Var", "Dynamic Var", "Static Var"],
+        "correct_answers": ["Base Var", "Computed Var"]
     },
     {
         "id": 1,
         "question_type": "single_choice",
-        "question_body": "What is the capital of Canada?",
+        "question_body": "What type of function is used to modify base variables in Reflex?",
         "question_image": None,
-        "options": ["Toronto", "Vancouver", "Ottawa", "Montreal"],
-        "correct_answers": ["Ottawa"]
+        "options": ["Event Handler", "Computed Function", "Event Trigger", "State Method"],
+        "correct_answers": ["Event Handler"]
     },
     {
         "id": 2,
         "question_type": "multiple_choice",
-        "question_body": "Which of the following are mammals?",
+        "question_body": "Which operators are supported by Reflex for performing operations on vars?",
         "question_image": None,
-        "options": ["Penguin", "Bat", "Dolphin", "Eagle", "Shark"],
-        "correct_answers": ["Bat", "Dolphin"]
+        "options": ["+", "to_string()", "reverse()", "substring()"],
+        "correct_answers": ["+", "to_string()", "reverse()"]
     },
     {
         "id": 3,
         "question_type": "single_choice",
-        "question_body": "What is the largest planet in our solar system?",
+        "question_body": "What does the @rx.cached_var decorator indicate about a var?",
         "question_image": None,
-        "options": ["Mars", "Jupiter", "Saturn", "Neptune"],
-        "correct_answers": ["Jupiter"]
+        "options": ["It is updated every time the state changes", "It is never updated", "It is only recomputed when dependent vars change", "It can be directly set by event handlers"],
+        "correct_answers": ["It is only recomputed when dependent vars change"]
     },
     {
         "id": 4,
         "question_type": "multiple_choice",
-        "question_body": "Which of the following are programming languages?",
+        "question_body": "Which statements are true about base vars in Reflex?",
         "question_image": None,
-        "options": ["Python", "English", "Java", "French", "C++"],
-        "correct_answers": ["Python", "Java", "C++"]
+        "options": ["They can be modified directly by event handlers", "They must be JSON serializable", "They are automatically recomputed", "They can store backend-only data"],
+        "correct_answers": ["They can be modified directly by event handlers", "They must be JSON serializable"]
     }
 ]
 
@@ -57,6 +57,10 @@ class Question(rx.Base):
     options: list[str]
     correct_answers: list[str]
     selected_answers: list[str] = []
+    is_correct: bool = False
+
+    def _check_correct_answers(self, answers):
+        return answers == self.correct_answers
 
 class State(rx.State):
     """The app state."""
@@ -73,6 +77,9 @@ class State(rx.State):
             submitted_answer = [key for key, value in data.items() if value == "on"]
         self.submitted_answers[question_id] = submitted_answer
         self.questions[question_id].selected_answers = submitted_answer
+
+        question = self.questions[question_id]
+        question.is_correct = question._check_correct_answers(submitted_answer)
 
     @rx.var
     def current_question(self) -> Question:
@@ -163,9 +170,31 @@ def quiz_comp() -> rx.Component:
         ),
     )
 
+def question_result(question : Question) -> rx.Component:
+    return rx.vstack(
+        rx.hstack(
+            rx.text("Question: "),
+            rx.text(question.id),
+        ),
+        rx.vstack(
+            rx.cond(
+                # fix the comparison
+                question.is_correct,
+                rx.text("Correct!"),
+                rx.text("Incorrect!"),
+            ),
+        )
+    )
+
 def result_comp() -> rx.Component:
     return rx.center(
-        rx.text("Test Result"),
+        rx.vstack(
+            rx.text("-----Test Result-----"),
+            rx.foreach(
+                State.questions,
+                question_result,
+            ),
+        )
     )
 
 def index() -> rx.Component:
@@ -186,3 +215,4 @@ def index() -> rx.Component:
 
 app = rx.App()
 app.add_page(index)
+
